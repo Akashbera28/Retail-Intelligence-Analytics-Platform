@@ -6,6 +6,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from app.data_processing.csv_reader import read_csv
 from app.data_processing.summary import dataset_summary
 from app.data_processing.validator import validate_dataset
+from app.data_processing.analytics import calculate_kpis
 
 router = APIRouter(
     prefix="/upload",
@@ -20,15 +21,15 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 @router.post("/csv")
 async def upload_csv(file: UploadFile = File(...)):
     """
-    Upload a CSV file, read it using Pandas,
-    generate dataset summary and validation report.
+    Upload a CSV file, analyze it, and return
+    dataset summary, validation report, and KPIs.
     """
 
-    # Check file extension
+    # Validate file extension
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(
             status_code=400,
-            detail="Only CSV files are allowed.",
+            detail="Only CSV files are allowed."
         )
 
     # Save uploaded file
@@ -41,16 +42,19 @@ async def upload_csv(file: UploadFile = File(...)):
         # Read CSV
         df = read_csv(file_path)
 
-        # Generate summary
+        # Dataset summary
         summary = dataset_summary(df)
 
-        # Validate dataset
+        # Dataset validation
         validation = validate_dataset(df)
+
+        # Business KPIs
+        analytics = calculate_kpis(df)
 
     except Exception as e:
         raise HTTPException(
             status_code=400,
-            detail=f"Error reading CSV file: {str(e)}",
+            detail=f"Error processing CSV: {str(e)}"
         )
 
     return {
@@ -58,4 +62,5 @@ async def upload_csv(file: UploadFile = File(...)):
         "filename": file.filename,
         "summary": summary,
         "validation": validation,
+        "analytics": analytics
     }
