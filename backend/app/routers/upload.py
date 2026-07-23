@@ -13,42 +13,36 @@ router = APIRouter(
     tags=["Upload"],
 )
 
-# Upload directory
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+# Project root directory
+BASE_DIR = Path(__file__).resolve().parents[3]
+
+# Save uploaded CSVs here
+UPLOAD_DIR = BASE_DIR / "data" / "raw"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @router.post("/csv")
 async def upload_csv(file: UploadFile = File(...)):
     """
-    Upload a CSV file, analyze it, and return
-    dataset summary, validation report, and KPIs.
+    Upload a CSV file, validate it, and return summary + KPIs.
     """
 
-    # Validate file extension
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(
             status_code=400,
             detail="Only CSV files are allowed."
         )
 
-    # Save uploaded file
     file_path = UPLOAD_DIR / file.filename
 
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        # Read CSV
         df = read_csv(file_path)
 
-        # Dataset summary
         summary = dataset_summary(df)
-
-        # Dataset validation
         validation = validate_dataset(df)
-
-        # Business KPIs
         analytics = calculate_kpis(df)
 
     except Exception as e:
@@ -59,6 +53,7 @@ async def upload_csv(file: UploadFile = File(...)):
 
     return {
         "message": "CSV uploaded successfully.",
+        "saved_path": str(file_path),
         "filename": file.filename,
         "summary": summary,
         "validation": validation,
